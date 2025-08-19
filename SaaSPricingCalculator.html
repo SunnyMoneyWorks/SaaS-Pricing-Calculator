@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SaaS Pricing Calculator + Export & Share</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    h1 {
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      font-size: 1rem;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .output {
+      margin-top: 30px;
+      padding: 10px;
+      background: #fff;
+      border-radius: 5px;
+    }
+    canvas {
+      margin-top: 20px;
+    }
+    form {
+      margin-top: 30px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    form label {
+      margin-top: 0;
+      font-weight: normal;
+    }
+    form input[type="email"] {
+      margin-top: 5px;
+    }
+    #emailMsg {
+      margin-top: 10px;
+      font-weight: bold;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h1>SaaS Pricing Calculator</h1>
+
+  <label>Monthly Active Users</label>
+  <input type="number" id="users" min="0" value="1000" />
+
+  <label>Conversion Rate (%)</label>
+  <input type="number" id="conversion" min="0" max="100" value="5" />
+
+  <label>Monthly Price per Paid User ($)</label>
+  <input type="number" id="price" min="0" value="20" />
+
+  <button onclick="calculateRevenue()">Calculate Revenue</button>
+
+  <div class="output">
+    <h3>Results</h3>
+    <p id="monthly">Monthly Revenue: $0</p>
+    <p id="yearly">Yearly Revenue: $0</p>
+  </div>
+
+  <button id="exportBtn" onclick="exportCSV()" style="background:#28a745; margin-top:10px;">Export Results as CSV</button>
+  <button id="shareBtn" onclick="updateShareURL()" style="background:#17a2b8; margin-top:10px;">Get Shareable Link</button>
+  <p id="shareLink" style="word-break: break-word; margin-top:10px;"></p>
+
+  <canvas id="revenueChart" width="400" height="200"></canvas>
+
+  <form id="emailForm" onsubmit="handleEmailSubmit(event)">
+    <h3>Get Results via Email (demo - no backend)</h3>
+    <label for="email">Your Email:</label>
+    <input type="email" id="email" required placeholder="you@example.com" />
+    <button type="submit">Send & Download CSV</button>
+    <p id="emailMsg"></p>
+  </form>
+
+  <script>
+    let chart;
+
+    // Calculate and display revenue + chart
+    function calculateRevenue() {
+      const users = parseFloat(document.getElementById("users").value);
+      const conversion = parseFloat(document.getElementById("conversion").value) / 100;
+      const price = parseFloat(document.getElementById("price").value);
+
+      if (isNaN(users) || isNaN(conversion) || isNaN(price)) return;
+
+      const paidUsers = users * conversion;
+      const monthlyRevenue = paidUsers * price;
+      const yearlyRevenue = monthlyRevenue * 12;
+
+      document.getElementById("monthly").textContent = `Monthly Revenue: $${monthlyRevenue.toFixed(2)}`;
+      document.getElementById("yearly").textContent = `Yearly Revenue: $${yearlyRevenue.toFixed(2)}`;
+
+      const monthlyData = Array.from({ length: 12 }, (_, i) =>
+        (monthlyRevenue * (1 - 0.01 * i)).toFixed(2)
+      );
+
+      const ctx = document.getElementById("revenueChart").getContext("2d");
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+          datasets: [
+            {
+              label: "Projected Monthly Revenue ($)",
+              data: monthlyData,
+              backgroundColor: "rgba(0, 123, 255, 0.2)",
+              borderColor: "#007bff",
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 3,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    // Export data as CSV file
+    function exportCSV() {
+      const users = parseFloat(document.getElementById("users").value);
+      const conversion = parseFloat(document.getElementById("conversion").value) / 100;
+      const price = parseFloat(document.getElementById("price").value);
+      if (isNaN(users) || isNaN(conversion) || isNaN(price)) return alert("Please fill all fields correctly.");
+
+      const paidUsers = users * conversion;
+      const monthlyRevenue = paidUsers * price;
+
+      // Create CSV content
+      let csv = "Month,Projected Revenue ($)\n";
+      for (let i = 0; i < 12; i++) {
+        const month = new Date(0, i).toLocaleString("default", { month: "short" });
+        const revenue = (monthlyRevenue * (1 - 0.01 * i)).toFixed(2);
+        csv += `${month},${revenue}\n`;
+      }
+      csv += `\nInputs,,\nMonthly Active Users,${users}\nConversion Rate (%),${(conversion * 100).toFixed(
+        2
+      )}\nPrice per Paid User ($),${price}\n`;
+
+      // Download CSV file
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createEle
